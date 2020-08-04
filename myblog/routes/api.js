@@ -1,6 +1,8 @@
 var express = require('express');
 const mysql = require('mysql');
 var cookieParser = require('cookie-parser');
+const session = require('express-session');
+const { token } = require('morgan');
 var router = express.Router();
 //创建连接池
 var pool = mysql.createPool({
@@ -15,43 +17,43 @@ function randomWord(){
 
 }
 
-//令牌接口
-router.get('/userSecurity',function(req,res){
-	var postData = {
-		userId: req.cookies.userId,
-		userKey:req.cookies.userKey
-	};
-	pool.getConnection(function(err, connection) {
-		connection.query("SELECT * FROM user where userId=? and userKey=?", [postData.userId, postData.userKey],function(err,rows){
-			if(rows.length>0){
-				res.send({
-					data:rows,
-					massage:"处理成功"
-				})
-			}else{
-				res.send({
-					data:err,
-					massage:'错误'
-				})
-			}
-		})	
-	})
-})
+  
 //用户列表接口
-router.get('/userList', function(req, res) {
-	pool.getConnection(function(err, connection) {
-		// 使用连接
-		connection.query('SELECT * FROM user', function(err, rows) {
-			// 使用连接执行查询
-			res.send({
-				data: rows,
-				massage: "处理成功",
-				
+router.get('/userList',  function(req, res) {
+	
+			if(req.cookies.userId&&req.cookies.userKey){
+			pool.getConnection(function(err,con) {
+				con.query('SELECT * FROM user where userId=? and userKey=?',
+				[req.cookies.userId,req.cookies.userKey],function (err,rows) {
+					if (err) throw err;
+					if (rows.length > 0) {
+						pool.getConnection(function(err, connection) {
+							// 使用连接
+							 connection.query('SELECT * FROM user', function(err, rows) {
+								// 使用连接执行查询
+								
+								res.send({
+									data: rows,
+									massage: req.cookies.userKey	
+								})
+								connection.release();
+								//连接不再使用，返回到连接池
+							})
+						})
+					}else{
+						res.send({
+							massage:"处理失败"
+						})
+					}
+					
+				})
+				con.release();
 			})
-			connection.release();
-			//连接不再使用，返回到连接池
-		})
-	})
+		}else{
+			res.send({
+				massage:"未登录"
+			})
+		}
 });
 //登陆接口
 router.post('/login', function(req, res) {
@@ -71,7 +73,9 @@ router.post('/login', function(req, res) {
 					connection.query("UPDATE user SET  userkey=? WHERE userId=?", [postData.userKey,postData.userId],
 						function(errs, rowss) {})
 						res.cookie('userId',postData.userId);
-						res.cookie('userKey',postData.userKey)
+						res.cookie('userKey',postData.userKey);
+						
+					
 					res.send({
 						data: postData.userKey,
 						massage: "处理成功",

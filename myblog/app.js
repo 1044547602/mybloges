@@ -5,6 +5,7 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var mysql      = require('mysql');
 var apiRouter = require('./routes/api');
+const session=require("express-session");
 
 
 var app = express();
@@ -23,7 +24,11 @@ app.all('*', function(req, res, next) {
 // // view engine setup
 // app.set('views', path.join(__dirname, 'views'));
 // app.set('view engine', 'jade');
-
+//session 中间件
+app.use(session({
+  secret: 'keyboard cat',
+  resave: true, saveUninitialized: true
+  }))
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
